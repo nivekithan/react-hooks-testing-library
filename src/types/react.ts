@@ -15,6 +15,7 @@ export type RendererOptions<TProps> = {
 
 export type RenderHookOptions<TProps> = BaseRenderHookOptions<TProps> & {
   wrapper?: WrapperComponent<TProps>
+  dontMount?: boolean
 }
 
 export type ReactHooksRenderer = {

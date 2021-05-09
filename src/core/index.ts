@@ -39,7 +39,6 @@ function resultContainer<TValue>() {
     setError: (error: Error) => updateResult(undefined, error)
   }
 }
-
 function createRenderHook<
   TProps,
   TResult,
@@ -47,39 +46,57 @@ function createRenderHook<
   TRenderer extends Renderer<TProps>
 >(createRenderer: CreateRenderer<TProps, TResult, TRendererOptions, TRenderer>) {
   const renderHook = (
-    callback: (props: TProps) => TResult,
+    callbacks: ((props: TProps) => TResult)[] | ((props: TProps) => TResult),
     options = {} as RenderHookOptions<TProps> & TRendererOptions
   ) => {
-    const { result, setValue, setError, addResolver } = resultContainer<TResult>()
-    const renderProps = { callback, setValue, setError }
-    let hookProps = options.initialProps
+    const createResult = (callback: (props: TProps) => TResult) => {
+      const { result, setValue, setError, addResolver } = resultContainer<TResult>()
+      const renderProps = { callback, setValue, setError }
+      let hookProps = options.initialProps
 
-    const { render, rerender, unmount, act, ...renderUtils } = createRenderer(renderProps, options)
+      const { render, rerender, unmount, act, ...renderUtils } = createRenderer(
+        renderProps,
+        options
+      )
+      if (!options.dontMount) {
+        render(hookProps)
+      }
 
-    render(hookProps)
+      const mount = () => {
+        render(hookProps)
+      }
 
-    const rerenderHook = (newProps = hookProps) => {
-      hookProps = newProps
-      rerender(hookProps)
+      const rerenderHook = (newProps = hookProps) => {
+        hookProps = newProps
+        rerender(hookProps)
+      }
+
+      const unmountHook = () => {
+        removeCleanup(unmountHook)
+        unmount()
+      }
+
+      addCleanup(unmountHook)
+
+      return {
+        result,
+        mount, // Change
+        rerender: rerenderHook,
+        unmount: unmountHook,
+        ...asyncUtils(act, addResolver),
+        ...renderUtils
+      }
     }
 
-    const unmountHook = () => {
-      removeCleanup(unmountHook)
-      unmount()
-    }
-
-    addCleanup(unmountHook)
-
-    return {
-      result,
-      rerender: rerenderHook,
-      unmount: unmountHook,
-      ...asyncUtils(act, addResolver),
-      ...renderUtils
+    if (Array.isArray(callbacks)) {
+      return callbacks.map((callback) => {
+        return createResult(callback)
+      })
+    } else {
+      return createResult(callbacks)
     }
   }
 
   return renderHook
 }
-
 export { createRenderHook, cleanup, addCleanup, removeCleanup, suppressErrorOutput }

@@ -61,6 +61,7 @@ export type RenderHookResult<
 
 export type RenderHookOptions<TProps> = {
   initialProps?: TProps
+  dontMount?: boolean
 }
 
 export type Act = {
